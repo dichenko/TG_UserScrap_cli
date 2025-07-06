@@ -38,8 +38,15 @@ class CSVExporter:
         sanitized_title = CSVExporter.sanitize_filename(chat_title)
         filename = f"{sanitized_title} - {current_date}.csv"
         
+        # Путь к папке output
+        output_dir = "output"
+        output_path = os.path.join(output_dir, filename)
+        
         try:
-            with open(filename, 'w', newline='', encoding='utf-8-sig') as csvfile:
+            # Создаем папку output, если её нет
+            os.makedirs(output_dir, exist_ok=True)
+            
+            with open(output_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
                 # Записываем заголовки
                 fieldnames = ['TGid', 'Username', 'Usersurname']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -53,9 +60,9 @@ class CSVExporter:
                         'Usersurname': participant['usersurname']
                     })
             
-            print(f"✅ Данные успешно экспортированы в файл: {filename}")
+            print(f"✅ Данные успешно экспортированы в файл: {output_path}")
             print(f"📊 Экспортировано участников: {len(participants)}")
-            return filename
+            return output_path
             
         except Exception as e:
             logger.error(f"❌ Ошибка при экспорте в CSV: {e}")

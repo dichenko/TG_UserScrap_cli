@@ -48,5 +48,5 @@ Thumbs.db
 # Logs
 *.log
 
-# CSV files (опционально)
-*.csv 
+# Output files (но сохраняем папку)
+output/*.csv 
