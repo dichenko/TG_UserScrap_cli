@@ -50,3 +50,4 @@ Thumbs.db
 
 # Output files (но сохраняем папку)
 output/*.csv 
+
