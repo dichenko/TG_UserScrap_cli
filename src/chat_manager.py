@@ -46,7 +46,7 @@ class ChatManager:
                                 'id': chat.id,
                                 'title': chat.title,
                                 'participants_count': full_chat.participants_count,
-                                'type': 'Канал' if chat.broadcast else 'Группа'
+                                'type': 'Канал' if isinstance(chat, Channel) and chat.broadcast else 'Группа'
                             }
                             available_chats.append(chat_info)
                             
@@ -104,7 +104,7 @@ class ChatManager:
                 return {
                     'id': chat.id,
                     'title': chat.title,
-                    'type': 'Канал' if hasattr(chat, 'broadcast') and chat.broadcast else 'Группа'
+                    'type': 'Канал' if isinstance(chat, Channel) and chat.broadcast else 'Группа'
                 }
         except Exception as e:
             logger.error(f"❌ Ошибка при получении чата по ID {chat_id}: {e}")
