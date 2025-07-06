@@ -2,14 +2,16 @@
 Модуль для работы с чатами и получения списка участников
 """
 import logging
-from typing import List, Dict, Optional
+import asyncio
+from typing import List, Dict, Optional, Tuple
 from telethon import TelegramClient
 from telethon.tl.types import (
     Channel, 
     Chat, 
     User,
     ChatFull,
-    ChannelFull
+    ChannelFull,
+    Message
 )
 from telethon.errors import (
     FloodWaitError,
@@ -66,6 +68,51 @@ class ChatManager:
         
         return available_chats
     
+    async def get_all_chats_with_access_status(self) -> Tuple[List[Dict], List[Dict]]:
+        """Получает все чаты, разделенные на доступные и недоступные"""
+        available_chats = []
+        unavailable_chats = []
+        
+        try:
+            # Получаем все диалоги
+            async for dialog in self.client.iter_dialogs():
+                chat = dialog.entity
+                
+                # Проверяем, что это группа, супергруппа или канал
+                if isinstance(chat, (Channel, Chat)):
+                    chat_info = {
+                        'id': chat.id,
+                        'title': chat.title,
+                        'type': 'Канал' if isinstance(chat, Channel) and chat.broadcast else 'Группа'
+                    }
+                    
+                    try:
+                        # Получаем полную информацию о чате
+                        full_chat = await self.client.get_entity(chat.id)
+                        
+                        # Проверяем, есть ли доступ к участникам
+                        if hasattr(full_chat, 'participants_count') and full_chat.participants_count:
+                            chat_info['participants_count'] = full_chat.participants_count
+                            available_chats.append(chat_info)
+                        else:
+                            unavailable_chats.append(chat_info)
+                            
+                    except (ChatAdminRequiredError, ChannelPrivateError):
+                        # Чаты без доступа к участникам
+                        unavailable_chats.append(chat_info)
+                    except Exception as e:
+                        logger.warning(f"Ошибка при получении информации о чате {chat.title}: {e}")
+                        unavailable_chats.append(chat_info)
+                        
+        except FloodWaitError as e:
+            print(f"❌ Слишком много запросов. Подождите {e.seconds} секунд")
+            return [], []
+        except Exception as e:
+            logger.error(f"❌ Ошибка при получении списка чатов: {e}")
+            return [], []
+        
+        return available_chats, unavailable_chats
+    
     async def get_chat_participants(self, chat_id: int) -> List[Dict]:
         """Получает список участников чата"""
         participants = []
@@ -108,6 +155,40 @@ class ChatManager:
             return []
         
         return participants
+    
+    async def analyze_messages_for_users(self, chat_id: int, limit: int) -> List[Dict]:
+        """Анализирует сообщения для извлечения авторов"""
+        users = {}
+        
+        try:
+            print(f"📊 Анализ {limit} последних сообщений...")
+            
+            async for message in self.client.iter_messages(chat_id, limit=limit):
+                if message and message.sender and isinstance(message.sender, User):
+                    user_id = message.sender.id
+                    
+                    # Добавляем пользователя только если его еще нет
+                    if user_id not in users:
+                        users[user_id] = {
+                            'tgid': user_id,
+                            'username': message.sender.username or '',
+                            'usersurname': f"{message.sender.first_name or ''} {message.sender.last_name or ''}".strip()
+                        }
+                        
+        except FloodWaitError as e:
+            print(f"⏳ Слишком много запросов. Ждем {e.seconds} секунд...")
+            await asyncio.sleep(e.seconds)
+            # Пытаемся продолжить анализ
+            return await self.analyze_messages_for_users(chat_id, limit)
+        except Exception as e:
+            logger.error(f"❌ Ошибка при анализе сообщений: {e}")
+            print(f"❌ Ошибка при анализе сообщений: {e}")
+            return []
+        
+        # Преобразуем словарь в список
+        users_list = list(users.values())
+        print(f"✅ Найдено уникальных авторов: {len(users_list)}")
+        return users_list
     
     async def get_chat_by_id(self, chat_id: int) -> Optional[Dict]:
         """Получает информацию о чате по ID"""
