@@ -74,12 +74,25 @@ class ChatManager:
             # Получаем участников чата
             async for participant in self.client.iter_participants(chat_id):
                 if isinstance(participant, User):
-                    participant_info = {
-                        'tgid': participant.id,
-                        'username': participant.username or '',
-                        'usersurname': f"{participant.first_name or ''} {participant.last_name or ''}".strip()
-                    }
-                    participants.append(participant_info)
+                    # Получаем актуальную информацию о пользователе
+                    try:
+                        user = await self.client.get_entity(participant.id)
+                        if isinstance(user, User):
+                            participant_info = {
+                                'tgid': user.id,
+                                'username': user.username or '',
+                                'usersurname': f"{user.first_name or ''} {user.last_name or ''}".strip()
+                            }
+                            participants.append(participant_info)
+                    except Exception as e:
+                        # Если не удалось получить актуальную информацию, используем данные из чата
+                        logger.warning(f"Не удалось получить актуальную информацию о пользователе {participant.id}: {e}")
+                        participant_info = {
+                            'tgid': participant.id,
+                            'username': participant.username or '',
+                            'usersurname': f"{participant.first_name or ''} {participant.last_name or ''}".strip()
+                        }
+                        participants.append(participant_info)
                     
         except ChatAdminRequiredError:
             print("❌ Ошибка: Нет доступа к списку участников. Требуются права администратора.")
