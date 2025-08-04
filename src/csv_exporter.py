@@ -28,7 +28,7 @@ class CSVExporter:
     
     @staticmethod
     def export_participants(participants: List[Dict], chat_title: str) -> str:
-        """Экспортирует участников в CSV файл"""
+        """Экспортирует участников в CSV файл с расширенной информацией"""
         if not participants:
             print("❌ Нет участников для экспорта")
             return ""
@@ -47,21 +47,40 @@ class CSVExporter:
             os.makedirs(output_dir, exist_ok=True)
             
             with open(output_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
-                # Записываем заголовки
-                fieldnames = ['TGid', 'Username', 'Usersurname']
+                # Определяем заголовки на основе доступных полей
+                fieldnames = [
+                    'TGid', 'Username', 'Usersurname', 'First_Name', 'Last_Name', 
+                    'Phone', 'Bio', 'Premium', 'Verified', 'Bot', 'Deleted', 
+                    'Scam', 'Fake', 'Status', 'Last_Seen'
+                ]
+                
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 
                 # Записываем данные
                 for participant in participants:
-                    writer.writerow({
-                        'TGid': participant['tgid'],
-                        'Username': f"@{participant['username']}" if participant['username'] else '',
-                        'Usersurname': participant['usersurname']
-                    })
+                    row = {
+                        'TGid': participant.get('tgid', ''),
+                        'Username': f"@{participant.get('username', '')}" if participant.get('username') else '',
+                        'Usersurname': participant.get('usersurname', ''),
+                        'First_Name': participant.get('first_name', ''),
+                        'Last_Name': participant.get('last_name', ''),
+                        'Phone': participant.get('phone', ''),
+                        'Bio': participant.get('bio', ''),
+                        'Premium': 'Да' if participant.get('premium', False) else 'Нет',
+                        'Verified': 'Да' if participant.get('verified', False) else 'Нет',
+                        'Bot': 'Да' if participant.get('bot', False) else 'Нет',
+                        'Deleted': 'Да' if participant.get('deleted', False) else 'Нет',
+                        'Scam': 'Да' if participant.get('scam', False) else 'Нет',
+                        'Fake': 'Да' if participant.get('fake', False) else 'Нет',
+                        'Status': participant.get('status', ''),
+                        'Last_Seen': participant.get('last_seen', '')
+                    }
+                    writer.writerow(row)
             
             print(f"✅ Данные успешно экспортированы в файл: {output_path}")
             print(f"📊 Экспортировано участников: {len(participants)}")
+            print(f"📋 Поля: {', '.join(fieldnames)}")
             return output_path
             
         except Exception as e:
